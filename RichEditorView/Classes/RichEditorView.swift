@@ -118,17 +118,34 @@ private let DefaultInnerLineHeight: Int = 21
             }
         }
     }
+
     
     // MARK: Initialization
     
     public override init(frame: CGRect) {
-        webView = RichEditorWebView()
+        let configuration = WKWebViewConfiguration()
+        configuration.dataDetectorTypes = WKDataDetectorTypes()
+        let jscript = "var meta = document.createElement('meta'); meta.setAttribute('name', 'viewport'); meta.setAttribute('content', 'width=device-width'); document.getElementsByTagName('head')[0].appendChild(meta);"
+        let userScript = WKUserScript(source: jscript, injectionTime: WKUserScriptInjectionTime.atDocumentEnd, forMainFrameOnly: true)
+        let wkUController = WKUserContentController()
+        wkUController.addUserScript(userScript)
+        configuration.userContentController = wkUController
+        
+        webView = RichEditorWebView(frame: .zero, configuration: configuration)
         super.init(frame: frame)
         setup()
     }
     
     required public init?(coder aDecoder: NSCoder) {
-        webView = RichEditorWebView()
+        let configuration = WKWebViewConfiguration()
+        configuration.dataDetectorTypes = WKDataDetectorTypes()
+        let jscript = "var meta = document.createElement('meta'); meta.setAttribute('name', 'viewport'); meta.setAttribute('content', 'width=device-width'); document.getElementsByTagName('head')[0].appendChild(meta);"
+        let userScript = WKUserScript(source: jscript, injectionTime: WKUserScriptInjectionTime.atDocumentEnd, forMainFrameOnly: true)
+        let wkUController = WKUserContentController()
+        wkUController.addUserScript(userScript)
+        configuration.userContentController = wkUController
+        
+        webView = RichEditorWebView(frame: .zero, configuration: configuration)
         super.init(coder: aDecoder)
         setup()
     }
@@ -138,9 +155,6 @@ private let DefaultInnerLineHeight: Int = 21
         webView.frame = bounds
         webView.navigationDelegate = self
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        if #available(iOS 10.0, *) {
-            webView.configuration.dataDetectorTypes = WKDataDetectorTypes()
-        }
         webView.scrollView.isScrollEnabled = isScrollEnabled
         webView.scrollView.bounces = true
         webView.scrollView.delegate = self

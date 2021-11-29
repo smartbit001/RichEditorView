@@ -27,11 +27,31 @@ import UIKit
 /// RichBarButtonItem is a subclass of UIBarButtonItem that takes a callback as opposed to the target-action pattern
 @objcMembers open class RichBarButtonItem: UIBarButtonItem {
     open var actionHandler: (() -> Void)?
+    open var button = UIButton()
+    open var buttonActive = false {
+        didSet {
+            if buttonActive {
+                button.backgroundColor = .systemBlue
+                button.tintColor = .white
+            } else {
+                button.backgroundColor = .clear
+                button.tintColor = .systemBlue
+            }
+        }
+    }
+    open var option: RichEditorOption?
     
-    public convenience init(image: UIImage? = nil, handler: (() -> Void)? = nil) {
-        self.init(image: image, style: .plain, target: nil, action: nil)
+    public convenience init(option: RichEditorOption, handler: (() -> Void)? = nil) {
+        let customButton = UIButton(frame: CGRect(x: 0, y: 0, width: 30, height: 30))
+        customButton.setImage(option.image?.withRenderingMode(.alwaysTemplate), for: .normal)
+        customButton.layer.cornerRadius = 5
+        
+        self.init(customView: customButton)
+        self.option = option
         target = self
         action = #selector(RichBarButtonItem.buttonWasTapped)
+        customButton.addTarget(self, action: #selector(buttonWasTapped), for: .touchUpInside)
+        button = customButton
         actionHandler = handler
     }
     
@@ -43,6 +63,7 @@ import UIKit
     }
     
     @objc func buttonWasTapped() {
+        buttonActive = !buttonActive
         actionHandler?()
     }
 }
@@ -72,6 +93,8 @@ import UIKit
     private var toolbarScroll: UIScrollView
     private var toolbar: UIToolbar
     private var backgroundToolbar: UIToolbar
+    
+    
     
     public override init(frame: CGRect) {
         toolbarScroll = UIScrollView()
@@ -114,7 +137,23 @@ import UIKit
         updateToolbar()
     }
     
+    public func updateState(selectedOptions: [RichEditorDefaultOption]) {
+        for item in toolbar.items ?? [] {
+            if let barItem = item as? RichBarButtonItem, let option = barItem.option {
+                
+                if selectedOptions.contains(where: { $0.image == option.image }) {
+                    barItem.buttonActive = true
+                } else {
+                    barItem.buttonActive = false
+                }
+            }
+        }
+    }
+    
     private func updateToolbar() {
+        let fixedSpace = UIBarButtonItem(barButtonSystemItem: .fixedSpace, target: nil, action: nil)
+        fixedSpace.width = 10
+        
         var buttons = [UIBarButtonItem]()
         for option in options {
             let handler = { [weak self] in
@@ -124,17 +163,19 @@ import UIKit
             }
 
             if let image = option.image {
-                let button = RichBarButtonItem(image: image, handler: handler)
+                let button = RichBarButtonItem(option: option, handler: handler)
                 buttons.append(button)
             } else {
                 let title = option.title
                 let button = RichBarButtonItem(title: title, handler: handler)
                 buttons.append(button)
             }
+            buttons.append(fixedSpace)
         }
+        toolbar.items?.removeAll()
         toolbar.items = buttons
-
-        let defaultIconWidth: CGFloat = 28
+        
+        let defaultIconWidth: CGFloat = 30
         let barButtonItemMargin: CGFloat = 11
         let width: CGFloat = buttons.reduce(0) {sofar, new in
             if let view = new.value(forKey: "view") as? UIView {
@@ -143,14 +184,15 @@ import UIKit
                 return sofar + (defaultIconWidth + barButtonItemMargin)
             }
         }
-        
+  
         if width < frame.size.width {
             toolbar.frame.size.width = frame.size.width
         } else {
             toolbar.frame.size.width = width
         }
-        toolbar.frame.size.height = 44
+        toolbar.frame.size.height = 40
         toolbarScroll.contentSize.width = width
     }
     
 }
+

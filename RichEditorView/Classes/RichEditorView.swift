@@ -39,6 +39,10 @@ private let DefaultInnerLineHeight: Int = 21
     /// Called when custom actions are called by callbacks in the JS
     /// By default, this method is not used unless called by some custom JS that you add
     @objc optional func richEditor(_ editor: RichEditorView, handle action: String)
+    
+    /// Called when the selection on action buttons is changed
+    @objc optional func richEditor(_ editor: RichEditorView, activeOptions options: [String])
+
 }
 
 /// RichEditorView is a UIView that displays richly styled text, and allows it to be edited in a WYSIWYG fashion.
@@ -103,8 +107,12 @@ private let DefaultInnerLineHeight: Int = 21
     public var html: String = "" {
         didSet {
             setHTML(html)
+            getCommandQueue()
         }
     }
+    
+    static let callbackPrefix = "re-callback://"
+    static let reStatePrefix = "re-state://"
     
     /// Private variable that holds the placeholder text, so you can set the placeholder before the editor loads.
     private var placeholderText: String = ""
@@ -119,9 +127,7 @@ private let DefaultInnerLineHeight: Int = 21
         }
     }
 
-    
     // MARK: Initialization
-    
     public override init(frame: CGRect) {
         let configuration = WKWebViewConfiguration()
         configuration.dataDetectorTypes = WKDataDetectorTypes()
@@ -165,6 +171,8 @@ private let DefaultInnerLineHeight: Int = 21
             let url = URL(fileURLWithPath: filePath, isDirectory: false)
             webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         }
+        
+        getCommandQueue()
     }
     
     // MARK: - Rich Text Editing
@@ -354,6 +362,13 @@ private let DefaultInnerLineHeight: Int = 21
         runJS("RE.insertImage('\(url.escaped)', '\(alt.escaped)')")
     }
     
+    
+    public func getCommandQueue() {
+        runJS("RE.getCommandQueue()") { commands in
+            print("LOG 4: commands are \(commands)")
+        }
+    }
+    
     public func insertLink(_ href: String, title: String) {
         runJS("RE.prepareInsert()")
         runJS("RE.insertLink('\(href.escaped)', '\(title.escaped)')")
@@ -425,10 +440,25 @@ private let DefaultInnerLineHeight: Int = 21
         // empy
     }
     
+    public func stateCheck() {
+        runJS("RE.updateState()")
+    }
+    
+    private func doStateCheck(text: String) {
+        var state = text.replacingOccurrences(of: RichEditorView.reStatePrefix, with: "", options: .caseInsensitive, range: nil)
+        let types = state.split(separator: ",")
+        var selectedTypes: [String] = []
+        for type in types {
+            selectedTypes.append(String(type))
+        }
+        delegate?.richEditor?(self, activeOptions: selectedTypes)
+    }
+    
+    
     public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         // Handle pre-defined editor actions
-        let callbackPrefix = "re-callback://"
-        if navigationAction.request.url?.absoluteString.hasPrefix(callbackPrefix) == true {
+
+        if navigationAction.request.url?.absoluteString.hasPrefix(RichEditorView.callbackPrefix) == true {
             // When we get a callback, we need to fetch the command queue to run the commands
             // It comes in as a JSON array of commands that we need to parse
             runJS("RE.getCommandQueue()") { commands in
@@ -445,6 +475,10 @@ private let DefaultInnerLineHeight: Int = 21
                     jsonCommands.forEach(self.performCommand)
                 }
             }
+            return decisionHandler(WKNavigationActionPolicy.cancel);
+        } else if navigationAction.request.url?.absoluteString.hasPrefix(RichEditorView.reStatePrefix) == true {
+            let decodedURL = navigationAction.request.url?.absoluteString.removingPercentEncoding
+            doStateCheck(text: decodedURL ?? "")
             return decisionHandler(WKNavigationActionPolicy.cancel);
         }
         
@@ -608,3 +642,4 @@ private let DefaultInnerLineHeight: Int = 21
         return true
     }
 }
+

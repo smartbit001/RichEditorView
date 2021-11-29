@@ -417,3 +417,67 @@ RE.getRelativeCaretYPosition = function() {
 
     return y;
 };
+
+RE.enabledEditingItems = function(e) {
+    RE.updateState();
+};
+
+RE.updateState = function(){
+    var items = [];
+    if (document.queryCommandState('bold')) {
+        items.push('bold');
+    }
+    if (document.queryCommandState('italic')) {
+        items.push('italic');
+    }
+    if (document.queryCommandState('subscript')) {
+        items.push('subscript');
+    }
+    if (document.queryCommandState('superscript')) {
+        items.push('superscript');
+    }
+    if (document.queryCommandState('strikeThrough')) {
+        items.push('strikeThrough');
+    }
+    if (document.queryCommandState('underline')) {
+        items.push('underline');
+    }
+    if (document.queryCommandState('insertOrderedList')) {
+        items.push('orderedList');
+    }
+    if (document.queryCommandState('insertUnorderedList')) {
+        items.push('unorderedList');
+    }
+    if (document.queryCommandState('justifyCenter')) {
+        items.push('justifyCenter');
+    }
+    if (document.queryCommandState('justifyFull')) {
+        items.push('justifyFull');
+    }
+    if (document.queryCommandState('justifyLeft')) {
+        items.push('justifyLeft');
+    }
+    if (document.queryCommandState('justifyRight')) {
+        items.push('justifyRight');
+    }
+    if (document.queryCommandState('insertHorizontalRule')) {
+        items.push('horizontalRule');
+    }
+    var formatBlock = document.queryCommandValue('formatBlock');
+    if (formatBlock.length > 0) {
+        items.push(formatBlock);
+    }
+
+    window.location.href = "re-state://" + encodeURI(items.join(','));
+};
+
+RE.editor.addEventListener("keyup", function(e) {
+    var KEY_LEFT = 37, KEY_RIGHT = 39;
+    if (e.which == KEY_LEFT || e.which == KEY_RIGHT) {
+        RE.enabledEditingItems(e);
+    }
+});
+RE.editor.addEventListener("click", RE.enabledEditingItems);
+// Will execute myCallback every 0.1 seconds
+var intervalID = window.setInterval(RE.updateState, 100);
+
